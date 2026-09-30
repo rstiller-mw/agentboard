@@ -1,0 +1,20 @@
+[package]
+name = "agentboard"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+readme = "README.md"
+keywords = ["tui", "claude-code", "ai-agents", "hyprland", "omarchy"]
+categories = ["command-line-utilities"]
+description = "Status list of running AI coding agents (Claude, Codex, Gemini, opencode) with jump-to-terminal"
+
+[dependencies]
+libc = "0.2"
+serde_json = "1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

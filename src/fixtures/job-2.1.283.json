@@ -1,0 +1,36 @@
+{
+ "state": "done",
+ "detail": "Deleting all pods again won't help while the corrupted state is still on their volumes.",
+ "tempo": "idle",
+ "tokens": 42911,
+ "output": null,
+ "children": null,
+ "linkScanOffset": 2604681,
+ "linkScanPath": "/home/user/.claude/projects/-home-user-projects-billing-api/11111111-2222-4333-8444-555555555555.jsonl",
+ "template": "bg",
+ "respawnFlags": [
+  "--reply-on-resume",
+  "--model",
+  "opus",
+  "--permission-mode",
+  "plan"
+ ],
+ "bgIsolation": "none",
+ "providerEnv": {
+  "ANTHROPIC_DEFAULT_HAIKU_MODEL": "claude-haiku-4-5"
+ },
+ "interactiveLineage": true,
+ "intent": "fixture intent",
+ "name": "API deployment logs",
+ "nameSource": "auto",
+ "sessionId": "11111111-2222-4333-8444-555555555555",
+ "resumeSessionId": "11111111-2222-4333-8444-555555555555",
+ "daemonShort": "11111111",
+ "cliVersion": "2.1.283",
+ "cwd": "/home/user/projects/billing-api",
+ "createdAt": "2026-09-29T11:14:51.963Z",
+ "updatedAt": "2026-09-29T14:44:52.793Z",
+ "firstTerminalAt": "2026-09-29T11:17:02.831Z",
+ "backend": "daemon",
+ "lastTerminalAt": "2026-09-29T14:44:52.793Z"
+}
