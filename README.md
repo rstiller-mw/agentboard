@@ -42,7 +42,7 @@ If you keep a handful of Claude Code sessions open across terminals and workspac
 You need Rust 1.85 or newer (the project uses the 2024 edition).
 
 ```bash
-git clone https://github.com/<you>/agentboard && cd agentboard
+git clone https://github.com/rstiller-mw/agentboard && cd agentboard
 ./install.sh            # builds and installs to ~/.local/bin/agentboard
 ./install.sh --watch    # also enables desktop notifications (systemd user service)
 ```
