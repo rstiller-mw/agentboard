@@ -10,16 +10,19 @@ If you keep a handful of Claude Code sessions open across terminals and workspac
   ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
   │ ███  ●  Add retry handling to the payment client                                             │
   │ ███     working  ·  claude  ·  42m  ·  ~$2.31  ·  ~/projects/billing-api                     │
+  │ ███     slice 2/3: tests ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━  60% │
   ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
 
   ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
   │ ███  ◆  Fix flaky integration test                                                           │
   │ ███     waiting  ·  claude  ·  2h 5m  ·  ~$0.84  ·  ~/projects/search-service                │
+  │ ███                                                                                          │
   ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
 
   ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
   │ ▒▒▒  ○  Summarise last week's incidents                                                      │
   │ ▒▒▒     idle  ·  claude job  ·  1d 3h  ·  ~$0.12  ·  ~/projects/ops-notes                    │
+  │ ▒▒▒                                                                                          │
   ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
 
   j/k move  ·  enter/space jump  ·  x remove  ·  h hide finished  ·  q quit
@@ -31,6 +34,7 @@ If you keep a handful of Claude Code sessions open across terminals and workspac
 
 - **Finds your agents by itself.** Claude Code sessions and background jobs, plus Codex, Gemini CLI and opencode processes. Nothing to configure or register.
 - **Shows what matters at a glance.** Status (working, waiting for you, idle, done, failed), how long it has been running, the folder, and a cost estimate for Claude.
+- **Shows progress.** A Claude session can report a percentage and a step name, which agentboard draws as a bar on its card. See [Showing progress](#showing-progress).
 - **Jumps to the right terminal.** On Hyprland, Enter focuses the window the agent runs in, switching workspace if needed. For a background job it opens a new terminal with `claude attach` or `claude --resume`.
 - **Gives sessions readable names.** Claude's auto-generated names like `billing-api-93` are replaced with the title Claude wrote for the conversation. Names you chose yourself are left alone.
 - **Lets you tidy up.** `x` (or `d`) removes a card from the list without touching the agent. It stays hidden for 30 days, then the entry expires.
@@ -70,7 +74,9 @@ Other commands: `agentboard --json` prints the same list as JSON (handy for scri
 
 ## Reading a card
 
-The three-cell bar on the left is the agent's brand colour (Claude orange, Codex green, Gemini blue, opencode grey). `███` is an interactive session and `▒▒▒` is a background job.
+The left bar is the agent's brand colour (Claude orange, Codex green, Gemini blue, opencode grey) and spans the full height of the card. `███` is an interactive session and `▒▒▒` is a background job.
+
+The main text shows the title, status, how long it has been running, and the folder. If progress is reported, a third line appears with the step name, a thin progress bar (using `━` and `─` characters), and the percentage. Once any card has one, all cards get that line (empty if the agent reports nothing), so they stay the same height.
 
 The status icon and label take their colours from your Omarchy theme, or sensible defaults if you don't use Omarchy:
 
@@ -84,6 +90,19 @@ The status icon and label take their colours from your Omarchy theme, or sensibl
 | `?` | a state agentboard doesn't recognise | dim |
 
 Cards are ordered by creation date, oldest first, so they don't jump around while you work.
+
+## Showing progress
+
+An agent reports progress by writing a small file, `~/.local/state/agentboard/progress/<session id>` (or under `$XDG_STATE_HOME`):
+
+```
+60
+slice 2/3: tests
+```
+
+The first line is the percentage (0-100, higher values are clamped), the optional second line is the step name. agentboard re-reads the files every second, so rewrite the file whenever the progress changes and delete it when you're done. The bar is hidden for finished (done or failed) agents, so a leftover file can't mislead.
+
+Only Claude Code sessions and jobs are read; the session id is the `sessionId` in `~/.claude/sessions/*.json` and is available to Claude's tools as `$CLAUDE_CODE_SESSION_ID`.
 
 ## About the cost figure
 
@@ -113,7 +132,7 @@ cargo test
 cargo build --release
 ```
 
-The code is small and split by job: `claude.rs` and `scan.rs` find agents, `cost.rs` prices transcripts, `ui.rs` draws, `jump.rs` and `launch.rs` do the jumping, `notify.rs` is the watcher. Tests use fixtures and temp directories, never your real agent data.
+The code is small and split by job: `claude.rs` and `scan.rs` find agents, `cost.rs` prices transcripts, `progress.rs` reads progress files, `ui.rs` draws, `jump.rs` and `launch.rs` do the jumping, `notify.rs` is the watcher. Tests use fixtures and temp directories, never your real agent data.
 
 ## License
 
