@@ -105,6 +105,7 @@ mod tests {
             detail: String::new(),
             created_ms: 0,
             cost: None,
+            progress: None,
             pid: None,
             open: None,
         }

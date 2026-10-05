@@ -7,6 +7,7 @@ mod launch;
 mod list;
 mod notify;
 mod proc;
+mod progress;
 mod scan;
 mod sources;
 mod term;
@@ -83,7 +84,7 @@ fn run_tui() {
 
     loop {
         let (width, height) = term::size();
-        let top = list.top_for(ui::capacity(height));
+        let top = list.top_for(ui::capacity(height, ui::card_rows(&list.visible())));
         term::write_out(&ui::render(&ui::View {
             agents: &list.visible(),
             selected: list.selected(),

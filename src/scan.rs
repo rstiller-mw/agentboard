@@ -68,6 +68,7 @@ fn agent(pid: u32, provider: Provider, busy: bool) -> Agent {
         detail: String::new(),
         created_ms: proc::start_ms(pid).unwrap_or(0),
         cost: None,
+        progress: None,
         pid: interactive.then_some(pid),
         open: None,
     }

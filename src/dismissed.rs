@@ -6,6 +6,14 @@ use std::path::PathBuf;
 /// Long enough that a dismissed job stays gone in practice, short enough that the file never grows.
 const TTL_MS: u64 = 30 * 24 * 3600 * 1000;
 
+/// Where agentboard keeps its own state.
+pub fn state_dir() -> PathBuf {
+    let state = std::env::var_os("XDG_STATE_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".local/state"));
+    state.join("agentboard")
+}
+
 /// Agents the user removed from the list, remembered on disk as `<epoch ms>\t<id>` lines until they expire.
 pub struct Dismissed {
     path: PathBuf,
@@ -14,10 +22,7 @@ pub struct Dismissed {
 
 impl Dismissed {
     pub fn load(now_ms: u64) -> Dismissed {
-        let state = std::env::var_os("XDG_STATE_HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".local/state"));
-        Dismissed::at(state.join("agentboard/dismissed"), now_ms)
+        Dismissed::at(state_dir().join("dismissed"), now_ms)
     }
 
     fn at(path: PathBuf, now_ms: u64) -> Dismissed {

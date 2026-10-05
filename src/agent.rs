@@ -1,3 +1,4 @@
+use crate::progress::Progress;
 use crate::theme::Rgb;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -95,10 +96,19 @@ pub struct Agent {
     pub created_ms: u64,
     /// Estimated dollars spent, when a transcript is available to price.
     pub cost: Option<f64>,
+    /// Self-reported by the agent through a progress file.
+    pub progress: Option<Progress>,
     /// Only set for a live process that owns a terminal, which is what makes an agent jumpable.
     pub pid: Option<u32>,
     /// Command that reopens the agent in a new terminal when there is no live terminal to jump to.
     pub open: Option<Vec<String>>,
+}
+
+impl Agent {
+    /// A finished agent's leftover progress would only mislead.
+    pub fn shown_progress(&self) -> Option<&Progress> {
+        self.progress.as_ref().filter(|_| !self.status.is_finished())
+    }
 }
 
 /// Costs are estimates, hence the tilde.

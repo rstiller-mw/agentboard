@@ -1,6 +1,7 @@
 use crate::agent::{Agent, Kind, Provider, Status};
 use crate::cost;
 use crate::proc;
+use crate::progress;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -95,6 +96,7 @@ fn sessions(dir: &Path, projects: &Path) -> Vec<Agent> {
                 agent.name = transcript.as_deref().and_then(|t| ai_title(t, &agent.id)).unwrap_or(agent.name);
             }
             agent.cost = transcript.as_deref().and_then(cost::of);
+            agent.progress = progress::of(&agent.id);
             Some(agent)
         })
         .collect()
@@ -163,6 +165,7 @@ fn session(v: &Value) -> Option<Agent> {
         detail: String::new(),
         created_ms: time_field(&v["startedAt"]).unwrap_or(0),
         cost: None,
+        progress: None,
         pid: interactive.then_some(pid),
         open: None,
         id,
@@ -191,6 +194,7 @@ fn jobs(dir: &Path, projects: &Path) -> Vec<Agent> {
             let modified = fs::metadata(&path).and_then(|m| m.modified()).ok();
             let mut agent = job(&v, &e.file_name().to_string_lossy(), modified);
             agent.cost = transcript(projects, &agent.id).as_deref().and_then(cost::of);
+            agent.progress = progress::of(&agent.id);
             Some(agent)
         })
         .collect()
@@ -229,6 +233,7 @@ fn job(v: &Value, dir_name: &str, modified: Option<std::time::SystemTime>) -> Ag
         detail: str_field(v, "detail"),
         created_ms,
         cost: None,
+        progress: None,
         pid: None,
         open,
         id,

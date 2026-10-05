@@ -11,6 +11,8 @@ const MIN_CARD_WIDTH: usize = 24;
 const GUTTER: usize = 9;
 /// Width of the coloured agent indicator, the same for every kind.
 const BAR_CELLS: usize = 3;
+/// Width of "100%".
+const PERCENT_CELLS: usize = 4;
 const SEPARATOR: &str = "  ·  ";
 
 pub struct View<'a> {
@@ -27,10 +29,15 @@ pub struct View<'a> {
     pub finished: usize,
 }
 
-/// How many cards fit between header and footer.
-pub fn capacity(height: usize) -> usize {
+/// Cards grow by a progress row as soon as any listed agent reports progress, so they stay the same height.
+pub fn card_rows(agents: &[&Agent]) -> usize {
+    CARD_ROWS + usize::from(agents.iter().any(|a| a.shown_progress().is_some()))
+}
+
+/// How many cards of `card_rows` rows fit between header and footer.
+pub fn capacity(height: usize, card_rows: usize) -> usize {
     let available = height.saturating_sub(HEADER_ROWS + FOOTER_ROWS);
-    ((available + GAP_ROWS) / (CARD_ROWS + GAP_ROWS)).max(1)
+    ((available + GAP_ROWS) / (card_rows + GAP_ROWS)).max(1)
 }
 
 pub fn render(v: &View) -> String {
@@ -41,12 +48,13 @@ pub fn render(v: &View) -> String {
     if v.agents.is_empty() {
         lines.push(paint(p.soft, "No agents found (Claude, Codex, Gemini, opencode)."));
     }
-    let visible = v.agents.iter().enumerate().skip(v.top).take(capacity(v.height));
+    let rows = card_rows(v.agents);
+    let visible = v.agents.iter().enumerate().skip(v.top).take(capacity(v.height, rows));
     for (n, (index, agent)) in visible.enumerate() {
         if n > 0 {
             lines.extend(std::iter::repeat_n(String::new(), GAP_ROWS));
         }
-        lines.extend(card(agent, index == v.selected, card_width, p, v.now_ms));
+        lines.extend(card(agent, index == v.selected, card_width, p, v.now_ms, rows > CARD_ROWS));
     }
 
     lines.resize(v.height.saturating_sub(FOOTER_ROWS), String::new());
@@ -103,7 +111,7 @@ fn status_style(status: Status, p: &Palette) -> (&'static str, Rgb) {
     }
 }
 
-fn card(a: &Agent, selected: bool, width: usize, p: &Palette, now_ms: u64) -> [String; CARD_ROWS] {
+fn card(a: &Agent, selected: bool, width: usize, p: &Palette, now_ms: u64, with_progress_row: bool) -> Vec<String> {
     let border = if selected { p.accent } else { p.dim };
     let kind_color = a.provider.brand();
     let bar_glyph = match a.kind {
@@ -118,12 +126,36 @@ fn card(a: &Agent, selected: bool, width: usize, p: &Palette, now_ms: u64) -> [S
     let name = fit(&a.name, text_width);
     let name = bold(if a.status.is_finished() && !selected { p.soft } else { p.text }, &name);
 
-    [
+    let mut rows = vec![
         paint(border, &format!("╭{}╮", "─".repeat(width - 2))),
         format!("{side} {bar}  {}  {name} {side}", paint(status_color, icon)),
         format!("{side} {bar}     {} {side}", info(a, text_width, p, now_ms)),
-        paint(border, &format!("╰{}╯", "─".repeat(width - 2))),
-    ]
+    ];
+    if with_progress_row {
+        rows.push(progress_row(a, text_width, p, &side, &bar));
+    }
+    rows.push(paint(border, &format!("╰{}╯", "─".repeat(width - 2))));
+    rows
+}
+
+/// Step name, a thin bar filling the rest of the row, and the percentage; blank for an agent without progress.
+fn progress_row(a: &Agent, text_width: usize, p: &Palette, side: &str, bar: &str) -> String {
+    let Some(progress) = a.shown_progress() else {
+        return format!("{side} {bar}     {} {side}", " ".repeat(text_width));
+    };
+    let step = match progress.step.chars().count() {
+        0 => String::new(),
+        n => format!("{} ", fit(&progress.step, n.min(text_width / 3))),
+    };
+    let bar_cells = text_width.saturating_sub(step.chars().count() + PERCENT_CELLS + 1);
+    let filled = bar_cells * usize::from(progress.percent) / 100;
+    format!(
+        "{side} {bar}     {}{}{} {} {side}",
+        paint(p.soft, &step),
+        paint(p.accent, &"━".repeat(filled)),
+        paint(p.dim, &"─".repeat(bar_cells - filled)),
+        paint(p.text, &format!("{:>3}%", progress.percent)),
+    )
 }
 
 fn info(a: &Agent, width: usize, p: &Palette, now_ms: u64) -> String {
@@ -181,6 +213,7 @@ fn bold(c: Rgb, s: &str) -> String {
 mod tests {
     use super::*;
     use crate::agent::Provider;
+    use crate::progress::Progress;
 
     fn agent(name: &str, status: Status) -> Agent {
         Agent {
@@ -193,6 +226,7 @@ mod tests {
             detail: String::new(),
             created_ms: 1,
             cost: None,
+            progress: None,
             pid: None,
             open: None,
         }
@@ -213,9 +247,31 @@ mod tests {
     #[test]
     fn every_card_row_has_the_same_visible_width() {
         for width in [24, 40, 100] {
-            let rows = card(&agent("a very long name that must be truncated somewhere", Status::Working), true, width, &Palette::load(), 10_000);
-            assert!(rows.iter().all(|r| visible_width(r) == width), "width {width}: {:?}", rows.map(|r| visible_width(&r)));
+            let mut a = agent("a very long name that must be truncated somewhere", Status::Working);
+            for (progress, with_row) in [(None, false), (None, true), (Some(Progress { percent: 42, step: "slice 2/3: implementing the thing".into() }), true), (Some(Progress { percent: 100, step: String::new() }), true)] {
+                a.progress = progress;
+                let rows = card(&a, true, width, &Palette::load(), 10_000, with_row);
+                assert!(rows.iter().all(|r| visible_width(r) == width), "width {width}: {:?}", rows.iter().map(|r| visible_width(r)).collect::<Vec<_>>());
+            }
         }
+    }
+
+    #[test]
+    fn progress_row_shows_step_thin_bar_and_percent() {
+        let mut a = agent("x", Status::Working);
+        a.progress = Some(Progress { percent: 50, step: "tests".into() });
+        let row = progress_row(&a, 36, &Palette::load(), "│", "███");
+        let plain: String = row.split('\x1b').map(|s| s.split_once('m').map_or(s, |(_, t)| t)).collect();
+        assert_eq!(plain, format!("│ ███     tests {}{}  50% │", "━".repeat(12), "─".repeat(13)));
+    }
+
+    #[test]
+    fn finished_agents_show_no_progress() {
+        let mut a = agent("x", Status::Done);
+        a.progress = Some(Progress { percent: 50, step: String::new() });
+        assert_eq!(card_rows(&[&a]), CARD_ROWS);
+        a.status = Status::Working;
+        assert_eq!(card_rows(&[&a]), CARD_ROWS + 1);
     }
 
     #[test]
@@ -227,8 +283,9 @@ mod tests {
 
     #[test]
     fn capacity_counts_the_gap_between_cards() {
-        assert_eq!(capacity(24), 4);
-        assert_eq!(capacity(3), 1);
+        assert_eq!(capacity(24, 4), 4);
+        assert_eq!(capacity(24, 5), 3);
+        assert_eq!(capacity(3, 4), 1);
     }
 
     #[test]
